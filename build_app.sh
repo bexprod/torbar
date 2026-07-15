@@ -5,16 +5,24 @@
 APP_DIR="TorMenu.app"
 CONTENTS_DIR="$APP_DIR/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
+RESOURCES_DIR="$CONTENTS_DIR/Resources"
 
 # Clean previous build
 rm -rf "$APP_DIR"
 
 # Create directories
 mkdir -p "$MACOS_DIR"
+mkdir -p "$RESOURCES_DIR"
 
 # Compile TorMenu
 echo "[*] Compiling TorMenu..."
 swiftc -O TorMenu.swift -o "$MACOS_DIR/TorMenu"
+
+# Copy AppIcon
+if [ -f "AppIcon.icns" ]; then
+    echo "[*] Adding application icon..."
+    cp "AppIcon.icns" "$RESOURCES_DIR/AppIcon.icns"
+fi
 
 # Create Info.plist
 echo "[*] Creating Info.plist..."
@@ -25,6 +33,8 @@ cat <<EOF > "$CONTENTS_DIR/Info.plist"
 <dict>
     <key>CFBundleExecutable</key>
     <string>TorMenu</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
     <string>com.bexprod.tormenu</string>
     <key>CFBundleName</key>

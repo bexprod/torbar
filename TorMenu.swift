@@ -9,6 +9,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var myMenu: NSMenu?
     var timer: Timer?
     var currentIP: String = "Waiting..."
+    var torVersion: String = "Unknown"
+    var torCircuit: String = "None"
     var isFetchingIP: Bool = false
     
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -50,6 +52,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         ipItemMenu.toolTip = "Click to copy IP to clipboard"
         ipItemMenu.tag = 102
         menu.addItem(ipItemMenu)
+        
+        let versionItemMenu = NSMenuItem(title: "Tor Version: Checking...", action: nil, keyEquivalent: "")
+        versionItemMenu.isEnabled = false
+        versionItemMenu.tag = 103
+        menu.addItem(versionItemMenu)
+        
+        let circuitItemMenu = NSMenuItem(title: "Tor Circuit: Checking...", action: nil, keyEquivalent: "")
+        circuitItemMenu.isEnabled = false
+        circuitItemMenu.tag = 104
+        menu.addItem(circuitItemMenu)
         
         menu.addItem(NSMenuItem.separator())
         
@@ -255,9 +267,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let responding = isTorResponding()
         
         if running && responding {
+            fetchTorVersion()
+            fetchTorCircuit()
             fetchTorIP()
         } else {
             self.currentIP = "N/A"
+            self.torCircuit = "None"
         }
         
         DispatchQueue.main.async { [weak self] in
@@ -290,6 +305,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 if let ipItemMenu = menu.item(withTag: 102) {
                     ipItemMenu.title = "Tor IP: \(self.currentIP)"
                     ipItemMenu.isEnabled = isOnline && self.currentIP != "Waiting..." && self.currentIP != "Connection Error"
+                }
+                
+                if let versionItemMenu = menu.item(withTag: 103) {
+                    versionItemMenu.title = "Tor Version: \(self.torVersion)"
+                }
+                
+                if let circuitItemMenu = menu.item(withTag: 104) {
+                    circuitItemMenu.title = "Tor Circuit: \(self.torCircuit)"
                 }
                 
                 if let identityItem = menu.item(withTag: 301) {
@@ -327,6 +350,111 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         try? task.run()
         task.waitUntilExit()
         return task.terminationStatus == 0
+    }
+    
+    func fetchTorVersion() {
+        guard torVersion == "Unknown" else { return }
+        
+        DispatchQueue.global(qos: .background).async { [weak self] in
+            guard let self = self else { return }
+            
+            let task = Process()
+            task.launchPath = "/bin/bash"
+            task.arguments = ["-c", "echo -e 'AUTHENTICATE \"\"\r\nGETINFO version\r\nQUIT' | nc -w 1 127.0.0.1 9051"]
+            let pipe = Pipe()
+            task.standardOutput = pipe
+            
+            do {
+                try task.run()
+                task.waitUntilExit()
+                
+                if task.terminationStatus == 0 {
+                    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                    if let output = String(data: data, encoding: .utf8),
+                       let version = self.parseVersion(from: output) {
+                        self.torVersion = version
+                    }
+                }
+            } catch {
+                self.torVersion = "Error"
+            }
+            
+            DispatchQueue.main.async {
+                if let menu = self.myMenu, let versionItemMenu = menu.item(withTag: 103) {
+                    versionItemMenu.title = "Tor Version: \(self.torVersion)"
+                }
+            }
+        }
+    }
+    
+    func parseVersion(from output: String) -> String? {
+        let lines = output.components(separatedBy: .newlines)
+        for line in lines {
+            if line.contains("version=") {
+                let parts = line.components(separatedBy: "=")
+                if parts.count > 1 {
+                    return parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+            }
+        }
+        return nil
+    }
+    
+    func fetchTorCircuit() {
+        DispatchQueue.global(qos: .background).async { [weak self] in
+            guard let self = self else { return }
+            
+            let task = Process()
+            task.launchPath = "/bin/bash"
+            task.arguments = ["-c", "echo -e 'AUTHENTICATE \"\"\r\nGETINFO circuit-status\r\nQUIT' | nc -w 1 127.0.0.1 9051"]
+            let pipe = Pipe()
+            task.standardOutput = pipe
+            
+            do {
+                try task.run()
+                task.waitUntilExit()
+                
+                if task.terminationStatus == 0 {
+                    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                    if let output = String(data: data, encoding: .utf8) {
+                        self.torCircuit = self.parseCircuit(from: output) ?? "None"
+                    }
+                } else {
+                    self.torCircuit = "None"
+                }
+            } catch {
+                self.torCircuit = "Error"
+            }
+            
+            DispatchQueue.main.async {
+                if let menu = self.myMenu, let circuitItemMenu = menu.item(withTag: 104) {
+                    circuitItemMenu.title = "Tor Circuit: \(self.torCircuit)"
+                }
+            }
+        }
+    }
+    
+    func parseCircuit(from output: String) -> String? {
+        let lines = output.components(separatedBy: .newlines)
+        for line in lines.reversed() {
+            if line.contains("BUILT") && line.contains("PURPOSE=GENERAL") {
+                let parts = line.components(separatedBy: " ")
+                guard parts.count > 2 else { continue }
+                let pathPart = parts[2]
+                let relays = pathPart.components(separatedBy: ",")
+                var names: [String] = []
+                for relay in relays {
+                    if let tildeIndex = relay.firstIndex(of: "~") {
+                        let name = String(relay[relay.index(after: tildeIndex)...])
+                        names.append(name)
+                    }
+                }
+                if !names.isEmpty {
+                    return names.joined(separator: " ➔ ")
+                }
+            }
+        }
+        return nil
     }
     
     func fetchTorIP() {
