@@ -1,16 +1,16 @@
 #!/bin/bash
-# Script pour compiler et lancer TorMenu en arrière-plan
+# Script to compile and run TorMenu in the background
 
-# Dossier de travail
+# Work directory
 cd "$(dirname "$0")"
 
-# Tue l'instance existante si elle tourne
+# Kill existing instance if running
 killall TorMenu 2>/dev/null
 
-# Recompile (pour appliquer d'éventuels changements)
+# Recompile to apply changes
 swiftc TorMenu.swift -o TorMenu
 
-# Lance en arrière-plan sans bloquer le terminal
+# Run in background without blocking the terminal
 nohup ./TorMenu >/dev/null 2>&1 &
 
-echo "[+] TorMenu a été démarré avec succès !"
+echo "[+] TorMenu started successfully!"

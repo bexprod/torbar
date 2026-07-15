@@ -1,26 +1,26 @@
 import AppKit
 import Foundation
 
-// Référence globale forte
+// Strong global reference
 var strongDelegateReference: AppDelegate?
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem?
     var myMenu: NSMenu?
     var timer: Timer?
-    var currentIP: String = "En attente..."
+    var currentIP: String = "Waiting..."
     var isFetchingIP: Bool = false
     
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Empêche macOS de suspendre l'application
+        // Prevent macOS from suspending the app
         UserDefaults.standard.set(false, forKey: "NSSupportsAutomaticTermination")
-        ProcessInfo.processInfo.disableAutomaticTermination("Surveillance Tor active")
+        ProcessInfo.processInfo.disableAutomaticTermination("Tor Active Monitoring")
         
-        // Configuration de la Status Bar
+        // Status Bar Configuration
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem?.button {
             button.title = "⚪"
-            button.toolTip = "Surveillance Tor"
+            button.toolTip = "Tor Status Monitor"
             button.target = self
             button.action = #selector(statusBarButtonClicked(_:))
         }
@@ -28,7 +28,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         constructMenu()
         updateStatus()
         
-        // Timer de surveillance toutes les 5 secondes
+        // Monitor status every 5 seconds
         timer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
             self?.updateStatus()
         }
@@ -38,49 +38,49 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let menu = NSMenu()
         menu.autoenablesItems = false
         
-        // Section Statut et IP
-        let statusItemMenu = NSMenuItem(title: "Statut: Vérification...", action: nil, keyEquivalent: "")
+        // Status and IP Section
+        let statusItemMenu = NSMenuItem(title: "Status: Checking...", action: nil, keyEquivalent: "")
         statusItemMenu.isEnabled = false
         statusItemMenu.tag = 101
         menu.addItem(statusItemMenu)
         
-        let ipItemMenu = NSMenuItem(title: "IP Tor: En attente...", action: #selector(copyIPToClipboard), keyEquivalent: "c")
+        let ipItemMenu = NSMenuItem(title: "Tor IP: Waiting...", action: #selector(copyIPToClipboard), keyEquivalent: "c")
         ipItemMenu.target = self
         ipItemMenu.isEnabled = false
-        ipItemMenu.toolTip = "Cliquez pour copier l'IP dans le presse-papiers"
+        ipItemMenu.toolTip = "Click to copy IP to clipboard"
         ipItemMenu.tag = 102
         menu.addItem(ipItemMenu)
         
         menu.addItem(NSMenuItem.separator())
         
-        // Actions Rapides
-        let identityItem = NSMenuItem(title: "Nouvelle Identité (Changer d'IP)", action: #selector(newIdentity), keyEquivalent: "n")
+        // Quick Actions
+        let identityItem = NSMenuItem(title: "New Identity (Request New IP)", action: #selector(newIdentity), keyEquivalent: "n")
         identityItem.target = self
         identityItem.isEnabled = true
         identityItem.tag = 301
         menu.addItem(identityItem)
         
-        let repairItem = NSMenuItem(title: "Réparer Tor (Vider le cache)", action: #selector(repairTor), keyEquivalent: "f")
+        let repairItem = NSMenuItem(title: "Repair Tor (Clear Cache)", action: #selector(repairTor), keyEquivalent: "f")
         repairItem.target = self
         repairItem.isEnabled = true
         menu.addItem(repairItem)
         
         menu.addItem(NSMenuItem.separator())
         
-        // Actions de contrôle
-        let startItem = NSMenuItem(title: "Démarrer Tor", action: #selector(startTor), keyEquivalent: "s")
+        // Service Control Actions
+        let startItem = NSMenuItem(title: "Start Tor", action: #selector(startTor), keyEquivalent: "s")
         startItem.target = self
         startItem.isEnabled = true
         startItem.tag = 201
         menu.addItem(startItem)
         
-        let stopItem = NSMenuItem(title: "Arrêter Tor", action: #selector(stopTor), keyEquivalent: "x")
+        let stopItem = NSMenuItem(title: "Stop Tor", action: #selector(stopTor), keyEquivalent: "x")
         stopItem.target = self
         stopItem.isEnabled = true
         stopItem.tag = 202
         menu.addItem(stopItem)
         
-        let restartItem = NSMenuItem(title: "Redémarrer Tor", action: #selector(restartTor), keyEquivalent: "r")
+        let restartItem = NSMenuItem(title: "Restart Tor", action: #selector(restartTor), keyEquivalent: "r")
         restartItem.target = self
         restartItem.isEnabled = true
         restartItem.tag = 203
@@ -88,20 +88,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         menu.addItem(NSMenuItem.separator())
         
-        // Aide et Outils
-        let helpItem = NSMenuItem(title: "Configuration du Proxy...", action: #selector(showProxyHelp), keyEquivalent: "h")
+        // Help and Tools
+        let helpItem = NSMenuItem(title: "Proxy Configuration...", action: #selector(showProxyHelp), keyEquivalent: "h")
         helpItem.target = self
         helpItem.isEnabled = true
         menu.addItem(helpItem)
         
-        let logItem = NSMenuItem(title: "Ouvrir les logs", action: #selector(openLog), keyEquivalent: "l")
+        let logItem = NSMenuItem(title: "Open Logs", action: #selector(openLog), keyEquivalent: "l")
         logItem.target = self
         logItem.isEnabled = true
         menu.addItem(logItem)
         
         menu.addItem(NSMenuItem.separator())
         
-        let quitItem = NSMenuItem(title: "Quitter", action: #selector(quit), keyEquivalent: "q")
+        let quitItem = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
         quitItem.target = self
         quitItem.isEnabled = true
         menu.addItem(quitItem)
@@ -117,17 +117,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     @objc func copyIPToClipboard() {
-        if currentIP != "N/A" && currentIP != "En attente..." && currentIP != "Erreur de connexion" && currentIP != "Erreur" {
+        if currentIP != "N/A" && currentIP != "Waiting..." && currentIP != "Connection Error" && currentIP != "Error" {
             let pasteboard = NSPasteboard.general
             pasteboard.declareTypes([.string], owner: nil)
             pasteboard.setString(currentIP, forType: .string)
             
-            sendNotification(title: "IP Copiée", message: "\(currentIP) a été copiée dans le presse-papiers.")
+            sendNotification(title: "IP Copied", message: "\(currentIP) copied to clipboard.")
         }
     }
     
     @objc func newIdentity() {
-        // Tente d'envoyer le signal NEWNYM sur le Port de Contrôle (9051)
+        // Attempt sending NEWNYM signal to Control Port (9051)
         let task = Process()
         task.launchPath = "/bin/bash"
         task.arguments = ["-c", "echo -e 'AUTHENTICATE \"\"\r\nSIGNAL NEWNYM\r\nQUIT' | nc -w 1 127.0.0.1 9051"]
@@ -140,10 +140,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             
             let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
             if output.contains("250 OK") {
-                sendNotification(title: "Nouvelle Identité", message: "Signal de nouvelle identité envoyé avec succès (NEWNYM).")
+                sendNotification(title: "New Identity", message: "New identity signal sent successfully (NEWNYM).")
             } else {
-                // Si le port de contrôle est fermé, on redémarre le service en fallback
-                sendNotification(title: "Changement d'IP", message: "Port de contrôle (9051) inactif. Redémarrage du service Tor...")
+                // Fallback: restart service if control port is inactive
+                sendNotification(title: "Changing IP", message: "Control port (9051) inactive. Restarting Tor service...")
                 runShellCommand("/opt/homebrew/bin/brew", arguments: ["services", "restart", "tor"])
             }
         } catch {
@@ -154,12 +154,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     @objc func repairTor() {
-        sendNotification(title: "Réparation de Tor", message: "Arrêt de Tor et nettoyage du cache...")
+        sendNotification(title: "Repairing Tor", message: "Stopping Tor and clearing cache...")
         
-        // Arrête le service
+        // Stop the service
         runShellCommand("/opt/homebrew/bin/brew", arguments: ["services", "stop", "tor"])
         
-        // Vide le cache
+        // Clear local connection cache
         let fileManager = FileManager.default
         let torDir = NSHomeDirectory() + "/.tor"
         if let files = try? fileManager.contentsOfDirectory(atPath: torDir) {
@@ -170,10 +170,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         
-        // Redémarre le service
+        // Restart the service
         runShellCommand("/opt/homebrew/bin/brew", arguments: ["services", "start", "tor"])
         
-        sendNotification(title: "Tor Réparé", message: "Le cache de connexion a été vidé et Tor a redémarré.")
+        sendNotification(title: "Tor Repaired", message: "Connection cache cleared and Tor restarted.")
         updateStatus()
     }
     
@@ -203,23 +203,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     @objc func showProxyHelp() {
         let alert = NSAlert()
-        alert.messageText = "Configuration du Proxy Tor"
+        alert.messageText = "Tor Proxy Configuration"
         alert.informativeText = """
-        Pour utiliser Tor avec vos applications, configurez le proxy SOCKS5 suivant :
+        To route your applications' traffic through Tor, configure this SOCKS5 proxy:
         
-        • Hôte : 127.0.0.1 (ou localhost)
-        • Port : 9050
+        • Host: 127.0.0.1 (or localhost)
+        • Port: 9050
         
-        --- CONFIGURATION PAR APPLICATION ---
+        --- APPLICATION SETUP EXAMPLES ---
         
-        1. Navigateur (Firefox) :
-           Préférences > Paramètres réseau > Configuration manuelle du proxy.
-           Remplir uniquement "Hôte SOCKS" avec 127.0.0.1 et le port 9050 (choisir SOCKS v5).
+        1. Web Browser (Firefox):
+           Preferences > Network Settings > Manual proxy configuration.
+           Fill only "SOCKS Host" with 127.0.0.1 and port 9050 (choose SOCKS v5).
         
-        2. Terminal (cURL, wget, etc.) :
+        2. Terminal (cURL, wget, etc.):
            export ALL_PROXY=socks5h://127.0.0.1:9050
         
-        3. Python (requests) :
+        3. Python (requests):
            proxies = {
                'http': 'socks5h://127.0.0.1:9050',
                'https': 'socks5h://127.0.0.1:9050'
@@ -268,13 +268,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let isOnline = running && responding
             
             if isOnline {
-                statusText = "Statut: En ligne 🟢"
+                statusText = "Status: Online 🟢"
                 icon = "🧅"
             } else if running {
-                statusText = "Statut: Démarrage... 🟡"
+                statusText = "Status: Starting... 🟡"
                 icon = "🟡"
             } else {
-                statusText = "Statut: Arrêté 🔴"
+                statusText = "Status: Stopped 🔴"
                 icon = "⚪"
             }
             
@@ -288,8 +288,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
                 
                 if let ipItemMenu = menu.item(withTag: 102) {
-                    ipItemMenu.title = "IP Tor: \(self.currentIP)"
-                    ipItemMenu.isEnabled = isOnline && self.currentIP != "En attente..." && self.currentIP != "Erreur de connexion"
+                    ipItemMenu.title = "Tor IP: \(self.currentIP)"
+                    ipItemMenu.isEnabled = isOnline && self.currentIP != "Waiting..." && self.currentIP != "Connection Error"
                 }
                 
                 if let identityItem = menu.item(withTag: 301) {
@@ -352,22 +352,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                        let ip = self.parseIP(from: jsonString) {
                         self.currentIP = ip
                     } else {
-                        self.currentIP = "Inconnue"
+                        self.currentIP = "Unknown"
                     }
                 } else {
-                    self.currentIP = "Erreur de connexion"
+                    self.currentIP = "Connection Error"
                 }
             } catch {
-                self.currentIP = "Erreur"
+                self.currentIP = "Error"
             }
             
             self.isFetchingIP = false
             
             DispatchQueue.main.async {
                 if let menu = self.myMenu, let ipItemMenu = menu.item(withTag: 102) {
-                    ipItemMenu.title = "IP Tor: \(self.currentIP)"
+                    ipItemMenu.title = "Tor IP: \(self.currentIP)"
                     let isOnline = self.isTorRunning() && self.isTorResponding()
-                    ipItemMenu.isEnabled = isOnline && self.currentIP != "En attente..." && self.currentIP != "Erreur de connexion"
+                    ipItemMenu.isEnabled = isOnline && self.currentIP != "Waiting..." && self.currentIP != "Connection Error"
                 }
             }
         }
