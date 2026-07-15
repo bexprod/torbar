@@ -1,0 +1,7 @@
+# Binaries
+TorMenu
+
+# Logs & temp files
+*.log
+nohup.out
+.DS_Store
