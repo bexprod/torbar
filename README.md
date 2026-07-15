@@ -47,12 +47,13 @@ For the **New Identity (Request New IP)** feature to work instantly (without res
 ## Installation and Usage
 
 1. **Clone or download** this repository.
-2. Open a terminal in the project directory and execute:
+2. Open a terminal in the project directory and run the installation script:
    ```bash
-   chmod +x run_tormenu.sh
-   ./run_tormenu.sh
+   chmod +x build_app.sh
+   ./build_app.sh
    ```
-   The script compiles `TorMenu.swift` and starts the binary in the background.
+   This script will compile the code, bundle it into a native macOS **`TorMenu.app`**, copy it into your **`/Applications`** folder, and register it to launch automatically at login.
+
 
 ---
 
