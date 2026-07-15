@@ -1,6 +1,6 @@
 # TorMenu 🧅
 
-**TorMenu** est une application minimaliste pour la barre des menus macOS. Elle permet de surveiller le statut de votre instance **Tor** locale (gérée par Homebrew), d'afficher votre adresse IP Tor actuelle en temps réel, et d'offrir des raccourcis rapides pour démarrer, arrêter ou redémarrer le service Tor.
+**TorMenu** est une application minimaliste pour la barre des menus macOS. Elle permet de surveiller le statut de votre instance **Tor** locale (gérée par Homebrew), d'afficher votre adresse IP Tor actuelle, de la copier en un clic, et d'offrir des raccourcis rapides pour changer d'IP, réparer la connexion ou contrôler le service Tor.
 
 ---
 
@@ -10,10 +10,12 @@
   * 🧅 : Tor est connecté au réseau (Bootstrapped 100%).
   * 🟡 : Tor démarre ou cherche à se connecter.
   * ⚪ : Tor est arrêté ou inaccessible.
-* **Affichage de l'IP active** : Met à jour et affiche l'adresse IP publique attribuée par le circuit Tor en cours.
+* **Affichage & Copie de l'IP active** : Affiche l'adresse IP publique de votre circuit Tor actuel. Cliquez sur la ligne pour copier directement l'IP dans votre presse-papiers avec une notification macOS native.
+* **Nouvelle Identité (Changer d'IP)** : Force le renouvellement du circuit Tor pour obtenir instantanément une nouvelle IP (via le port de contrôle ou redémarrage de secours).
+* **Réparer Tor** : Raccourci de dépannage automatique qui arrête Tor, efface le cache de consensus local (`cached-*`), et redémarre le service. Idéal si Tor est "bloqué" à 75% ou n'arrive plus à ouvrir de circuits.
 * **Commandes de contrôle direct** : Démarrer, Arrêter et Redémarrer Tor en un clic.
 * **Accès rapide aux logs** : Ouvre le fichier journal `/opt/homebrew/var/log/tor.log` pour le diagnostic.
-* **Aide à la configuration** : Un guide rapide intégré pour configurer vos applications et terminaux.
+* **Aide à la configuration** : Un guide rapide intégré pour configurer vos navigateurs, scripts et terminaux.
 
 ---
 
@@ -24,12 +26,28 @@ Tor doit être installé sur votre Mac via Homebrew :
 brew install tor
 ```
 
+### Configuration recommandée (Port de contrôle)
+Pour que la fonctionnalité **Nouvelle Identité (Changer d'IP)** soit instantanée (sans avoir à redémarrer tout le service Tor), activez le port de contrôle local de Tor :
+
+1. Éditez votre fichier de configuration `/opt/homebrew/etc/tor/torrc` (créez-le s'il n'existe pas) :
+   ```bash
+   nano /opt/homebrew/etc/tor/torrc
+   ```
+2. Ajoutez la ligne suivante :
+   ```text
+   ControlPort 9051
+   ```
+3. Redémarre Tor pour appliquer :
+   ```bash
+   brew services restart tor
+   ```
+
 ---
 
 ## Installation et Lancement
 
 1. **Cloner ou télécharger** ce dépôt.
-2. Ouvrez un terminal dans le dossier et lancez le script d'initialisation :
+2. Ouvrez un terminal dans le dossier et lancez le script :
    ```bash
    chmod +x run_tormenu.sh
    ./run_tormenu.sh

@@ -44,10 +44,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         statusItemMenu.tag = 101
         menu.addItem(statusItemMenu)
         
-        let ipItemMenu = NSMenuItem(title: "IP Tor: En attente...", action: nil, keyEquivalent: "")
+        let ipItemMenu = NSMenuItem(title: "IP Tor: En attente...", action: #selector(copyIPToClipboard), keyEquivalent: "c")
+        ipItemMenu.target = self
         ipItemMenu.isEnabled = false
+        ipItemMenu.toolTip = "Cliquez pour copier l'IP dans le presse-papiers"
         ipItemMenu.tag = 102
         menu.addItem(ipItemMenu)
+        
+        menu.addItem(NSMenuItem.separator())
+        
+        // Actions Rapides
+        let identityItem = NSMenuItem(title: "Nouvelle Identité (Changer d'IP)", action: #selector(newIdentity), keyEquivalent: "n")
+        identityItem.target = self
+        identityItem.isEnabled = true
+        identityItem.tag = 301
+        menu.addItem(identityItem)
+        
+        let repairItem = NSMenuItem(title: "Réparer Tor (Vider le cache)", action: #selector(repairTor), keyEquivalent: "f")
+        repairItem.target = self
+        repairItem.isEnabled = true
+        menu.addItem(repairItem)
         
         menu.addItem(NSMenuItem.separator())
         
@@ -98,6 +114,67 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if let menu = myMenu {
             statusItem?.popUpMenu(menu)
         }
+    }
+    
+    @objc func copyIPToClipboard() {
+        if currentIP != "N/A" && currentIP != "En attente..." && currentIP != "Erreur de connexion" && currentIP != "Erreur" {
+            let pasteboard = NSPasteboard.general
+            pasteboard.declareTypes([.string], owner: nil)
+            pasteboard.setString(currentIP, forType: .string)
+            
+            sendNotification(title: "IP Copiée", message: "\(currentIP) a été copiée dans le presse-papiers.")
+        }
+    }
+    
+    @objc func newIdentity() {
+        // Tente d'envoyer le signal NEWNYM sur le Port de Contrôle (9051)
+        let task = Process()
+        task.launchPath = "/bin/bash"
+        task.arguments = ["-c", "echo -e 'AUTHENTICATE \"\"\r\nSIGNAL NEWNYM\r\nQUIT' | nc -w 1 127.0.0.1 9051"]
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        
+        do {
+            try task.run()
+            task.waitUntilExit()
+            
+            let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            if output.contains("250 OK") {
+                sendNotification(title: "Nouvelle Identité", message: "Signal de nouvelle identité envoyé avec succès (NEWNYM).")
+            } else {
+                // Si le port de contrôle est fermé, on redémarre le service en fallback
+                sendNotification(title: "Changement d'IP", message: "Port de contrôle (9051) inactif. Redémarrage du service Tor...")
+                runShellCommand("/opt/homebrew/bin/brew", arguments: ["services", "restart", "tor"])
+            }
+        } catch {
+            runShellCommand("/opt/homebrew/bin/brew", arguments: ["services", "restart", "tor"])
+        }
+        
+        updateStatus()
+    }
+    
+    @objc func repairTor() {
+        sendNotification(title: "Réparation de Tor", message: "Arrêt de Tor et nettoyage du cache...")
+        
+        // Arrête le service
+        runShellCommand("/opt/homebrew/bin/brew", arguments: ["services", "stop", "tor"])
+        
+        // Vide le cache
+        let fileManager = FileManager.default
+        let torDir = NSHomeDirectory() + "/.tor"
+        if let files = try? fileManager.contentsOfDirectory(atPath: torDir) {
+            for file in files {
+                if file.hasPrefix("cached-") {
+                    try? fileManager.removeItem(atPath: torDir + "/" + file)
+                }
+            }
+        }
+        
+        // Redémarre le service
+        runShellCommand("/opt/homebrew/bin/brew", arguments: ["services", "start", "tor"])
+        
+        sendNotification(title: "Tor Réparé", message: "Le cache de connexion a été vidé et Tor a redémarré.")
+        updateStatus()
     }
     
     @objc func startTor() {
@@ -165,6 +242,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         task.waitUntilExit()
     }
     
+    func sendNotification(title: String, message: String) {
+        let script = "display notification \"\(message)\" with title \"🧅 \(title)\""
+        let task = Process()
+        task.launchPath = "/usr/bin/osascript"
+        task.arguments = ["-e", script]
+        try? task.run()
+    }
+    
     func updateStatus() {
         let running = isTorRunning()
         let responding = isTorResponding()
@@ -180,8 +265,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             
             let statusText: String
             let icon: String
+            let isOnline = running && responding
             
-            if running && responding {
+            if isOnline {
                 statusText = "Statut: En ligne 🟢"
                 icon = "🧅"
             } else if running {
@@ -203,6 +289,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 
                 if let ipItemMenu = menu.item(withTag: 102) {
                     ipItemMenu.title = "IP Tor: \(self.currentIP)"
+                    ipItemMenu.isEnabled = isOnline && self.currentIP != "En attente..." && self.currentIP != "Erreur de connexion"
+                }
+                
+                if let identityItem = menu.item(withTag: 301) {
+                    identityItem.isEnabled = isOnline
                 }
                 
                 if let startItem = menu.item(withTag: 201) {
@@ -275,6 +366,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.async {
                 if let menu = self.myMenu, let ipItemMenu = menu.item(withTag: 102) {
                     ipItemMenu.title = "IP Tor: \(self.currentIP)"
+                    let isOnline = self.isTorRunning() && self.isTorResponding()
+                    ipItemMenu.isEnabled = isOnline && self.currentIP != "En attente..." && self.currentIP != "Erreur de connexion"
                 }
             }
         }
